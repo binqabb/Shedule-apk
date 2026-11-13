@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Расписание 1-136</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --card: #151c2c;
+    --card-2: #1e293b;
+    --border: #2e3c56;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --green: #10b981;
+    --green-bg: rgba(16, 185, 129, 0.16);
+    --red: #ef4444;
+    --red-bg: rgba(239, 68, 68, 0.16);
+    --blue: #3b82f6;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); padding: 14px; padding-bottom: 80px; }
+
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .group-title { font-size: 18px; font-weight: 800; letter-spacing: 0.3px; }
+  .group-sub { font-size: 12px; color: var(--muted); }
+
+  .week-switcher { display: flex; gap: 6px; margin-bottom: 14px; background: var(--card); padding: 5px; border-radius: 14px; border: 1px solid var(--border); }
+  .week-btn { flex: 1; padding: 9px 8px; border-radius: 10px; border: none; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+  .week-btn.active-green { background: var(--green); color: #052e16; }
+  .week-btn.active-red { background: var(--red); color: #fff; }
+  .week-btn.invert-btn { flex: 0.8; background: var(--card-2); color: #cbd5e1; }
+
+  /* Живой виджет сверху */
+  .live-widget { background: linear-gradient(145deg, #162032, #0f172a); border: 1.5px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.45); }
+  .lw-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+  .badge-green { background: var(--green-bg); color: #34d399; border: 1px solid var(--green); }
+  .badge-red { background: var(--red-bg); color: #f87171; border: 1px solid var(--red); }
+  .lw-clock { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+  .now-box { background: rgba(255,255,255,0.04); border-radius: 14px; padding: 12px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.06); }
+  .now-top { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+  .now-status { color: #34d399; }
+  .now-timer { color: #e2e8f0; }
+  .now-subj { font-size: 18px; font-weight: 800; margin-bottom: 2px; color: #fff; }
+  .now-teach { font-size: 13px; color: var(--muted); }
+
+  .progress-wrap { height: 6px; background: #1e293b; border-radius: 99px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); width: 0%; transition: width 0.3s; }
+
+  .next-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 2px 0; }
+  .next-tag { color: #60a5fa; font-weight: 800; font-size: 11px; }
+  .next-val { color: #e2e8f0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Дни недели */
+  .days-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .day-tab { flex: 1; padding: 10px 0; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; }
+  .day-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* Список пар */
+  .lessons-list { display: flex; flex-direction: column; gap: 10px; }
+  .lesson-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; position: relative; }
+  .lesson-card.current-slot { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+  .num-col { width: 48px; text-align: center; background: var(--card-2); border-radius: 12px; padding: 8px 4px; flex-shrink: 0; }
+  .num-big { font-size: 16px; font-weight: 800; color: #fff; }
+  .num-time { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.2; }
+
+  .info-col { flex: 1; min-width: 0; }
+  .subj-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+  .teach-name { font-size: 12px; color: var(--muted); }
+  .empty-slot { font-size: 13px; color: #475569; font-style: italic; }
+
+  .split-indicator { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; margin-right: 5px; vertical-align: middle; }
+  .split-a { background: var(--green-bg); color: #34d399; }
+  .split-b { background: var(--red-bg); color: #f87171; }
+  .other-week-hint { font-size: 11px; color: #64748b; margin-top: 4px; border-top: 1px dashed #2e3c56; padding-top: 4px; }
+
+  .edit-btn { background: var(--card-2); border: 1px solid var(--border); color: #93c5fd; border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+
+  /* Модальное окно редактирования */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #151c2c; border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 400px; padding: 18px; }
+  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+  .mode-selector { display: flex; gap: 6px; margin-bottom: 14px; }
+  .mode-btn { flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 700; border-radius: 9px; border: 1px solid var(--border); background: var(--card-2); color: var(--muted); cursor: pointer; }
+  .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .field-group { margin-bottom: 12px; }
+  .field-label { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; display: block; }
+  .field-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #0b0f19; color: #fff; font-size: 14px; }
+
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .btn-cancel { flex: 1; padding: 11px; border-radius: 11px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-weight: 700; }
+  .btn-save { flex: 1.3; padding: 11px; border-radius: 11px; border: none; background: var(--green); color: #052e16; font-weight: 800; }
+
+  .footer-bar { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .reset-btn { padding: 10px 14px; border-radius: 12px; border: 1px solid #475569; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 600; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <div class="group-title">Расписание 1-136</div>
+    <div class="group-sub">Нажмите «Изменить» у любой пары для замены</div>
+  </div>
+</div>
+
+<!-- Переключатель недели -->
+<div class="week-switcher">
+  <button id="btnWeekA" class="week-btn" onclick="selectPreviewWeek('A')">🟢 Зеленая (А)</button>
+  <button id="btnWeekB" class="week-btn" onclick="selectPreviewWeek('B')">🔴 Красная (Б)</button>
+  <button class="week-btn invert-btn" onclick="invertAutoWeek()">⇄ Сменить</button>
+</div>
+
+<!-- Живой виджет -->
+<div class="live-widget">
+  <div class="lw-header">
+    <span id="lwBadge" class="badge badge-green">🟢 ЗЕЛЕНАЯ НЕДЕЛЯ (А)</span>
+    <span id="lwClock" class="lw-clock">Пн • 09:00</span>
+  </div>
+  <div class="now-box">
+    <div class="now-top">
+      <span id="lwStatus" class="now-status">СЕЙЧАС ИДЕТ</span>
+      <span id="lwTimer" class="now-timer"></span>
+    </div>
+    <div id="lwSubj" class="now-subj">Загрузка...</div>
+    <div id="lwTeach" class="now-teach"></div>
+    <div class="progress-wrap"><div id="lwProg" class="progress-bar"></div></div>
+  </div>
+  <div class="next-row">
+    <span id="lwNextLabel" class="next-tag">ДАЛЕЕ:</span>
+    <span id="lwNextVal" class="next-val">—</span>
+  </div>
+</div>
+
+<!-- Вкладки дней -->
+<div class="days-tabs">
+  <div class="day-tab" data-day="1" onclick="selectDay(1)">Пн</div>
+  <div class="day-tab" data-day="2" onclick="selectDay(2)">Вт</div>
+  <div class="day-tab" data-day="3" onclick="selectDay(3)">Ср</div>
+  <div class="day-tab" data-day="4" onclick="selectDay(4)">Чт</div>
+  <div class="day-tab" data-day="5" onclick="selectDay(5)">Пт</div>
+</div>
+
+<div id="lessonsContainer" class="lessons-list"></div>
+
+<div class="footer-bar">
+  <button class="reset-btn" onclick="resetSchedule()">↺ Сбросить все изменения к исходному расписанию 1-136</button>
+</div>
+
+<!-- Модальное окно редактирования пары -->
+<div id="editModal" class="modal-backdrop">
+  <div class="modal">
+    <div id="modalTitle" class="modal-title">Редактировать пару</div>
+
+    <div class="mode-selector">
+      <button id="modeBoth" class="mode-btn" onclick="setEditMode('both')">Всегда одна</button>
+      <button id="modeSplit" class="mode-btn" onclick="setEditMode('split')">Чередуется А/Б</button>
+      <button id="modeNone" class="mode-btn" onclick="setEditMode('none')">Нет пары</button>
+    </div>
+
+    <div id="fieldsA">
+      <div class="field-group">
+        <label id="labelSubA" class="field-label">Предмет</label>
+        <input id="inputSubA" class="field-input" type="text" placeholder="Например: Математика">
+      </div>
+      <div class="field-group">
+        <label id="labelTeachA" class="field-label">Преподаватель / Кабинет</label>
+        <input id="inputTeachA" class="field-input" type="text" placeholder="Например: Сумець О.І.">
+      </div>
+    </div>
+
+    <div id="fieldsB" style="display:none; border-top:1px solid #2e3c56; padding-top:10px; margin-top:8px;">
+      <div class="field-group">
+        <label class="field-label" style="color:#f87171;">Предмет в Красную неделю (Б)</label>
+        <input id="inputSubB" class="field-input" type="text" placeholder="Оставьте пустым, если окна">
+      </div>
+      <div class="field-group">
+        <label class="field-label" style="color:#f87171;">Преподаватель (Б)</label>
+        <input id="inputTeachB" class="field-input" type="text" placeholder="Например: Сергєєва Л.М.">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-save" onclick="saveSlotEdit()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BELLS = [
+  { num: 1, startMin: 540, endMin: 600, startStr: "09:00", endStr: "10:00" },
+  { num: 2, startMin: 610, endMin: 670, startStr: "10:10", endStr: "11:10" },
+  { num: 3, startMin: 680, endMin: 740, startStr: "11:20", endStr: "12:20" },
+  { num: 4, startMin: 750, endMin: 810, startStr: "12:30", endStr: "13:30" },
+  { num: 5, startMin: 820, endMin: 870, startStr: "13:40", endStr: "14:30" }
+];
+
+const DEFAULT_SCHEDULE = {
+  "1": [
+    { mode: "both", subA: "Укр. мова", teachA: "Тендітна Н.М.", subB: "Укр. мова", teachB: "Тендітна Н.М." },
+    { mode: "both", subA: "Іноз. мова", teachA: "Ковальова Н.І.", subB: "Іноз. мова", teachB: "Ковальова Н.І." },
+    { mode: "both", subA: "Географ.", teachA: "Бурлачка М.С.", subB: "Географ.", teachB: "Бурлачка М.С." },
+    { mode: "both", subA: "Вступ до спец 16*", teachA: "Озерська Т.І.", subB: "Вступ до спец 16*", teachB: "Озерська Т.І." },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" }
+  ],
+  "2": [
+    { mode: "both", subA: "Укр. літ", teachA: "Тендітна Н.М.", subB: "Укр. літ", teachB: "Тендітна Н.М." },
+    { mode: "both", subA: "Гр. Економ", teachA: "Кладченко І.М.", subB: "Гр. Економ", teachB: "Кладченко І.М." },
+    { mode: "both", subA: "Всесв. іст", teachA: "Мікулін І.В.", subB: "Всесв. іст", teachB: "Мікулін І.В." },
+    { mode: "split", subA: "Фіз. культ", teachA: "Полях О.В.", subB: "Фізика і астрономія", teachB: "Сергєєва Л.М." },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" }
+  ],
+  "3": [
+    { mode: "both", subA: "Мистецтво (Культурологія)", teachA: "Тендітна Н.М.", subB: "Мистецтво (Культурологія)", teachB: "Тендітна Н.М." },
+    { mode: "both", subA: "Інформатика", teachA: "Воскобойникова О.І.", subB: "Інформатика", teachB: "Воскобойникова О.І." },
+    { mode: "both", subA: "Зар. літ", teachA: "Владимирова В.В.", subB: "Зар. літ", teachB: "Владимирова В.В." },
+    { mode: "split", subA: "Іст. Укр.", teachA: "Бурлачка М.С.", subB: "", teachB: "" },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" }
+  ],
+  "4": [
+    { mode: "both", subA: "Хімія", teachA: "Токарева Л.Ю.", subB: "Хімія", teachB: "Токарева Л.Ю." },
+    { mode: "both", subA: "Фізика і астрономія", teachA: "Сергєєва Л.М.", subB: "Фізика і астрономія", teachB: "Сергєєва Л.М." },
+    { mode: "both", subA: "Фіз. культ", teachA: "Полях О.В.", subB: "Фіз. культ", teachB: "Полях О.В." },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" }
+  ],
+  "5": [
+    { mode: "both", subA: "Захист України", teachA: "Полях О.В.", subB: "Захист України", teachB: "Полях О.В." },
+    { mode: "both", subA: "Математика", teachA: "Сумець О.І.", subB: "Математика", teachB: "Сумець О.І." },
+    { mode: "both", subA: "Біол. і екол", teachA: "Мельник Т.Л.", subB: "Біол. і екол", teachB: "Мельник Т.Л." },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" },
+    { mode: "none", subA: "", teachA: "", subB: "", teachB: "" }
+  ]
+};
+
+let scheduleData = {};
+let weekOffset = 0;
+let selectedDay = 1;
+let previewWeek = "A";
+let editingSlotIndex = 0;
+let editingMode = "both";
+
+function loadData() {
+  try {
+    if (window.AndroidBridge) {
+      scheduleData = JSON.parse(window.AndroidBridge.loadScheduleJson());
+      weekOffset = window.AndroidBridge.getWeekOffset();
+    } else {
+      const saved = localStorage.getItem("schedule_136_v1");
+      scheduleData = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+      weekOffset = parseInt(localStorage.getItem("week_offset_136") || "0", 10);
+    }
+  } catch (e) {
+    scheduleData = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+  }
+}
+
+function saveData() {
+  const jsonStr = JSON.stringify(scheduleData);
+  if (window.AndroidBridge) {
+    window.AndroidBridge.saveScheduleJson(jsonStr);
+  } else {
+    localStorage.setItem("schedule_136_v1", jsonStr);
+  }
+}
+
+function getWeekTypeForDate(date) {
+  const refMonday = new Date(2026, 10, 9, 0, 0, 0); // 9 Nov 2026 = Green (A)
+  const d = new Date(date);
+  const day = d.getDay();
+  const diffToMon = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diffToMon);
+  d.setHours(0,0,0,0);
+  const weeks = Math.round((d - refMonday) / (7 * 86400000));
+  const isEven = (((weeks + weekOffset) % 2) + 2) % 2 === 0;
+  return isEven ? "A" : "B";
+}
+
+function getActiveLesson(day, slotIdx, weekType) {
+  const arr = scheduleData[String(day)];
+  if (!arr || !arr[slotIdx]) return null;
+  const item = arr[slotIdx];
+  if (item.mode === "none") return null;
+  const sub = (item.mode === "both" || weekType === "A") ? item.subA : item.subB;
+  const teach = (item.mode === "both" || weekType === "A") ? item.teachA : item.teachB;
+  if (!sub || !sub.trim()) return null;
+  return { subject: sub.trim(), teacher: (teach || "").trim() };
+}
+
+function selectPreviewWeek(w) {
+  previewWeek = w;
+  document.getElementById("btnWeekA").className = "week-btn " + (w === "A" ? "active-green" : "");
+  document.getElementById("btnWeekB").className = "week-btn " + (w === "B" ? "active-red" : "");
+  renderDayList();
+}
+
+function invertAutoWeek() {
+  weekOffset = (weekOffset === 0) ? 1 : 0;
+  if (window.AndroidBridge) {
+    window.AndroidBridge.setWeekOffset(weekOffset);
+  } else {
+    localStorage.setItem("week_offset_136", String(weekOffset));
+  }
+  const curW = getWeekTypeForDate(new Date());
+  selectPreviewWeek(curW);
+  updateLiveWidget();
+}
+
+function selectDay(d) {
+  selectedDay = d;
+  document.querySelectorAll(".day-tab").forEach(el => {
+    el.classList.toggle("active", parseInt(el.dataset.day, 10) === d);
+  });
+  renderDayList();
+}
+
+function renderDayList() {
+  const container = document.getElementById("lessonsContainer");
+  container.innerHTML = "";
+  const arr = scheduleData[String(selectedDay)] || [];
+
+  for (let i = 0; i < 5; i++) {
+    const bell = BELLS[i];
+    const slot = arr[i] || { mode: "none", subA: "", teachA: "", subB: "", teachB: "" };
+    const card = document.createElement("div");
+    card.className = "lesson-card";
+
+    let contentHtml = "";
+    if (slot.mode === "none") {
+      contentHtml = `<div class="empty-slot">Свободная пара (окно)</div>`;
+    } else if (slot.mode === "both") {
+      contentHtml = `
+        <div class="subj-title">${slot.subA || "Без названия"}</div>
+        <div class="teach-name">${slot.teachA || ""}</div>
+      `;
+    } else {
+      const activeSub = previewWeek === "A" ? slot.subA : slot.subB;
+      const activeTeach = previewWeek === "A" ? slot.teachA : slot.teachB;
+      const otherSub = previewWeek === "A" ? slot.subB : slot.subA;
+      const badgeCls = previewWeek === "A" ? "split-a" : "split-b";
+      const badgeTxt = previewWeek === "A" ? "А" : "Б";
+      const otherTxt = previewWeek === "A" ? "Б" : "А";
+
+      contentHtml = `
+        <div class="subj-title">
+          <span class="split-indicator ${badgeCls}">${badgeTxt}</span>
+          ${activeSub ? activeSub : "<span class='empty-slot'>Нет пары в эту неделю</span>"}
+        </div>
+        <div class="teach-name">${activeTeach || ""}</div>
+        <div class="other-week-hint">Неделя ${otherTxt}: ${otherSub || "нет пары"}</div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="num-col">
+        <div class="num-big">${bell.num}</div>
+        <div class="num-time">${bell.startStr}<br>${bell.endStr}</div>
+      </div>
+      <div class="info-col">${contentHtml}</div>
+      <button class="edit-btn" onclick="openEditModal(${i})">✎ Изм.</button>
+    `;
+    container.appendChild(card);
+  }
+}
+
+function openEditModal(slotIdx) {
+  editingSlotIndex = slotIdx;
+  const slot = scheduleData[String(selectedDay)][slotIdx];
+  const dayNames = ["", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница"];
+  document.getElementById("modalTitle").textContent = `${dayNames[selectedDay]} • ${BELLS[slotIdx].num} пара (${BELLS[slotIdx].startStr})`;
+
+  document.getElementById("inputSubA").value = slot.subA || "";
+  document.getElementById("inputTeachA").value = slot.teachA || "";
+  document.getElementById("inputSubB").value = slot.subB || "";
+  document.getElementById("inputTeachB").value = slot.teachB || "";
+
+  setEditMode(slot.mode || "both");
+  document.getElementById("editModal").classList.add("open");
+}
+
+function setEditMode(mode) {
+  editingMode = mode;
+  document.getElementById("modeBoth").classList.toggle("active", mode === "both");
+  document.getElementById("modeSplit").classList.toggle("active", mode === "split");
+  document.getElementById("modeNone").classList.toggle("active", mode === "none");
+
+  const fA = document.getElementById("fieldsA");
+  const fB = document.getElementById("fieldsB");
+  if (mode === "none") {
+    fA.style.display = "none";
+    fB.style.display = "none";
+  } else if (mode === "both") {
+    fA.style.display = "block";
+    fB.style.display = "none";
+    document.getElementById("labelSubA").textContent = "Предмет (каждую неделю)";
+  } else {
+    fA.style.display = "block";
+    fB.style.display = "block";
+    document.getElementById("labelSubA").textContent = "Предмет в Зеленую неделю (А)";
+  }
+}
+
+function closeModal() {
+  document.getElementById("editModal").classList.remove("open");
+}
+
+function saveSlotEdit() {
+  const sA = document.getElementById("inputSubA").value.trim();
+  const tA = document.getElementById("inputTeachA").value.trim();
+  const sB = document.getElementById("inputSubB").value.trim();
+  const tB = document.getElementById("inputTeachB").value.trim();
+
+  scheduleData[String(selectedDay)][editingSlotIndex] = {
+    mode: editingMode,
+    subA: sA,
+    teachA: tA,
+    subB: editingMode === "both" ? sA : sB,
+    teachB: editingMode === "both" ? tA : tB
+  };
+
+  saveData();
+  closeModal();
+  renderDayList();
+  updateLiveWidget();
+}
+
+function resetSchedule() {
+  if (!confirm("Вернуть стандартное расписание группы 1-136?")) return;
+  if (window.AndroidBridge) {
+    scheduleData = JSON.parse(window.AndroidBridge.resetDefaultSchedule());
+  } else {
+    scheduleData = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+    saveData();
+  }
+  renderDayList();
+  updateLiveWidget();
+}
+
+function updateLiveWidget() {
+  const now = new Date();
+  const jsDay = now.getDay();
+  const isoDay = jsDay === 0 ? 7 : jsDay;
+  const curMin = now.getHours() * 60 + now.getMinutes();
+  const weekType = getWeekTypeForDate(now);
+
+  const badge = document.getElementById("lwBadge");
+  if (weekType === "A") {
+    badge.className = "badge badge-green";
+    badge.textContent = "🟢 ЗЕЛЕНАЯ НЕДЕЛЯ (А)";
+  } else {
+    badge.className = "badge badge-red";
+    badge.textContent = "🔴 КРАСНАЯ НЕДЕЛЯ (Б)";
+  }
+
+  const dNames = ["", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  document.getElementById("lwClock").textContent = `${dNames[isoDay]} • ${hh}:${mm}`;
+
+  const todayActive = [];
+  if (isoDay >= 1 && isoDay <= 5) {
+    for (let i = 0; i < 5; i++) {
+      const l = getActiveLesson(isoDay, i, weekType);
+      if (l) todayActive.push({ bell: BELLS[i], lesson: l });
+    }
+  }
+
+  const stEl = document.getElementById("lwStatus");
+  const tmEl = document.getElementById("lwTimer");
+  const sbEl = document.getElementById("lwSubj");
+  const tcEl = document.getElementById("lwTeach");
+  const prEl = document.getElementById("lwProg");
+  const nxEl = document.getElementById("lwNextVal");
+
+  if (todayActive.length > 0 && curMin <= todayActive[todayActive.length - 1].bell.endMin) {
+    const first = todayActive[0];
+    if (curMin < first.bell.startMin) {
+      stEl.textContent = "ДО НАЧАЛА ПАР";
+      tmEl.textContent = `через ${first.bell.startMin - curMin} мин`;
+      sbEl.textContent = `${first.bell.num} пара: ${first.lesson.subject}`;
+      tcEl.textContent = first.lesson.teacher;
+      prEl.style.width = "0%";
+      nxEl.textContent = todayActive.length > 1 ? `${todayActive[1].bell.num} пара (${todayActive[1].bell.startStr}) • ${todayActive[1].lesson.subject}` : "Всего 1 пара сегодня";
+      return;
+    }
+
+    for (let i = 0; i < todayActive.length; i++) {
+      const cur = todayActive[i];
+      if (curMin >= cur.bell.startMin && curMin < cur.bell.endMin) {
+        const left = cur.bell.endMin - curMin;
+        const pct = Math.min(100, Math.max(0, ((curMin - cur.bell.startMin) / (cur.bell.endMin - cur.bell.startMin)) * 100));
+        stEl.textContent = `ИДЕТ ${cur.bell.num} ПАРА`;
+        tmEl.textContent = `осталось ${left} мин`;
+        sbEl.textContent = cur.lesson.subject;
+        tcEl.textContent = cur.lesson.teacher;
+        prEl.style.width = pct + "%";
+        nxEl.textContent = (i + 1 < todayActive.length) ? `${todayActive[i+1].bell.num} пара (${todayActive[i+1].bell.startStr}) • ${todayActive[i+1].lesson.subject}` : "Последняя пара 🎉";
+        return;
+      }
+      if (i + 1 < todayActive.length && curMin >= cur.bell.endMin && curMin < todayActive[i+1].bell.startMin) {
+        const nxt = todayActive[i+1];
+        const left = nxt.bell.startMin - curMin;
+        stEl.textContent = "ПЕРЕМЕНА";
+        tmEl.textContent = `звонок через ${left} мин`;
+        sbEl.textContent = `Далее: ${nxt.lesson.subject}`;
+        tcEl.textContent = nxt.lesson.teacher;
+        prEl.style.width = "100%";
+        nxEl.textContent = `${nxt.bell.num} пара в ${nxt.bell.startStr}`;
+        return;
+      }
+    }
+  }
+
+  // Следующий учебный день
+  for (let add = 1; add <= 7; add++) {
+    const nextDate = new Date(now.getTime() + add * 86400000);
+    const nDay = nextDate.getDay() === 0 ? 7 : nextDate.getDay();
+    if (nDay >= 1 && nDay <= 5) {
+      const nWeek = getWeekTypeForDate(nextDate);
+      const list = [];
+      for (let i = 0; i < 5; i++) {
+        const l = getActiveLesson(nDay, i, nWeek);
+        if (l) list.push({ bell: BELLS[i], lesson: l });
+      }
+      if (list.length > 0) {
+        stEl.textContent = add === 1 ? `ЗАВТРА (${nWeek === 'A' ? 'Зеленая А' : 'Красная Б'})` : `${dNames[nDay]} (${nWeek === 'A' ? 'Зеленая А' : 'Красная Б'})`;
+        tmEl.textContent = `в ${list[0].bell.startStr}`;
+        sbEl.textContent = `${list[0].bell.num} пара: ${list[0].lesson.subject}`;
+        tcEl.textContent = list[0].lesson.teacher;
+        prEl.style.width = "0%";
+        nxEl.textContent = list.length > 1 ? `${list[1].bell.num} пара (${list[1].bell.startStr}) • ${list[1].lesson.subject}` : "Одна пара в этот день";
+        break;
+      }
+    }
+  }
+}
+
+loadData();
+const nowInit = new Date();
+const initIso = nowInit.getDay() === 0 ? 1 : (nowInit.getDay() > 5 ? 1 : nowInit.getDay());
+previewWeek = getWeekTypeForDate(nowInit);
+selectPreviewWeek(previewWeek);
+selectDay(initIso);
+updateLiveWidget();
+setInterval(updateLiveWidget, 15000);
+</script>
+</body>
+</html>
